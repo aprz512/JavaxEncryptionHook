@@ -64,11 +64,11 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                         super.afterHookedMethod(param);
-                        byte[] result = (byte[]) param.getResult();
-                        String msg = format(result);
+                        byte[] params = (byte[]) param.args[0];
+                        String msg = format(params);
                         Throwable stack = new Throwable("java.security.spec.X509EncodedKeySpec#<init>");
                         Log.e(TAG, msg, stack);
-                        FileUtils.log(loadPackageParam.packageName, msg, result, stack);
+                        FileUtils.log(loadPackageParam.packageName, msg, params, stack);
                     }
                 });
     }
