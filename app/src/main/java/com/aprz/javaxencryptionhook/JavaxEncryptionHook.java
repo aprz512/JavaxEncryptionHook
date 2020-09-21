@@ -8,6 +8,7 @@ import androidx.annotation.NonNull;
 
 
 import java.security.MessageDigest;
+import java.security.PublicKey;
 
 import javax.crypto.Cipher;
 import javax.crypto.Mac;
@@ -79,7 +80,8 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                         super.afterHookedMethod(param);
-                        byte[] result = (byte[]) param.getResult();
+                        PublicKey publicKey = (PublicKey) param.getResult();
+                        byte[] result = publicKey.getEncoded();
                         String msg = format(result);
                         Throwable stack = new Throwable("java.security.KeyFactory#generatePublic");
                         Log.e(TAG, msg, stack);
