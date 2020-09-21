@@ -51,8 +51,41 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
             hookDESKeySpec(loadPackageParam);
 
             hookCipher(loadPackageParam);
+
+            hookKeyFactory(loadPackageParam);
+            hookX509EncodedKeySpec(loadPackageParam);
         }
 
+    }
+
+    private void hookX509EncodedKeySpec(final XC_LoadPackage.LoadPackageParam loadPackageParam) {
+        XposedBridge.hookAllConstructors(XposedHelpers.findClass("java.security.spec.X509EncodedKeySpec", loadPackageParam.classLoader),
+                new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                        super.afterHookedMethod(param);
+                        byte[] result = (byte[]) param.getResult();
+                        String msg = format(result);
+                        Throwable stack = new Throwable("java.security.spec.X509EncodedKeySpec#<init>");
+                        Log.e(TAG, msg, stack);
+                        FileUtils.log(loadPackageParam.packageName, msg, result, stack);
+                    }
+                });
+    }
+
+    private void hookKeyFactory(final XC_LoadPackage.LoadPackageParam loadPackageParam) {
+        XposedBridge.hookAllMethods(XposedHelpers.findClass("java.security.KeyFactory", loadPackageParam.classLoader),
+                "generatePublic", new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                        super.afterHookedMethod(param);
+                        byte[] result = (byte[]) param.getResult();
+                        String msg = format(result);
+                        Throwable stack = new Throwable("java.security.KeyFactory#generatePublic");
+                        Log.e(TAG, msg, stack);
+                        FileUtils.log(loadPackageParam.packageName, msg, result, stack);
+                    }
+                });
     }
 
     private void hookMac(final XC_LoadPackage.LoadPackageParam loadPackageParam) {
@@ -66,7 +99,7 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
                         byte[] result = (byte[]) param.getResult();
 
                         String msg = format(algorithm, result);
-                        Throwable stack = new Throwable("Mac 算法");
+                        Throwable stack = new Throwable("javax.crypto.Mac#doFinal");
                         Log.e(TAG, msg, stack);
                         FileUtils.log(loadPackageParam.packageName, msg, result, stack);
                     }
@@ -86,7 +119,7 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
                         byte[] iv = cip.getIV();
                         String algorithm = cip.getAlgorithm();
 
-                        Throwable stack = new Throwable("Cipher");
+                        Throwable stack = new Throwable("javax.crypto.Cipher#doFinal");
                         String msg = format(algorithm, iv, result);
                         Log.e(TAG, msg, stack);
                         FileUtils.log(loadPackageParam.packageName, msg, iv, result, new Throwable());
@@ -111,7 +144,7 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
                 System.arraycopy((byte[]) param.args[0], offset, keyByte, 0, 8);
 
                 String msg = format(keyByte);
-                Throwable stack = new Throwable("DESKeySpec");
+                Throwable stack = new Throwable("javax.crypto.spec.DESKeySpec#<init>");
                 Log.e(TAG, msg, stack);
                 FileUtils.log(loadPackageParam.packageName, msg, keyByte, stack);
             }
@@ -135,7 +168,7 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
                 System.arraycopy((byte[]) param.args[0], offset, keyByte, 0, 24);
 
                 String msg = format(keyByte);
-                Throwable stack = new Throwable("DESedeKeySpec");
+                Throwable stack = new Throwable("javax.crypto.spec.DESedeKeySpec#<init>");
 
                 Log.e(TAG, msg, stack);
                 FileUtils.log(loadPackageParam.packageName, msg, keyByte, stack);
@@ -168,7 +201,7 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
                 System.arraycopy((byte[]) param.args[0], offset, data, 0, size);
 
                 String msg = format(algorithm, data);
-                Throwable stack = new Throwable("SecretKeySpec");
+                Throwable stack = new Throwable("javax.crypto.spec.SecretKeySpec#<init>");
 
                 Log.e(TAG, msg, stack);
                 FileUtils.log(loadPackageParam.packageName, msg, data, stack);
@@ -200,7 +233,7 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
                 System.arraycopy(tmp, offset, ivByte, 0, size);
 
                 String msg = format(ivByte);
-                Throwable stack = new Throwable("IvParameterSpec");
+                Throwable stack = new Throwable("javax.crypto.spec.IvParameterSpec#<init>");
                 Log.e(TAG, msg, stack);
                 FileUtils.log(loadPackageParam.packageName, msg, ivByte, stack);
             }
@@ -220,7 +253,7 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
                 MessageDigest md = (MessageDigest) param.thisObject;
                 byte[] result = (byte[]) param.getResult();
                 String msg = format(md.getAlgorithm(), result);
-                Throwable stack = new Throwable("MessageDigest");
+                Throwable stack = new Throwable("java.security.MessageDigest#digest");
                 Log.e(TAG, msg, stack);
                 FileUtils.log(loadPackageParam.packageName, msg, result, stack);
             }
