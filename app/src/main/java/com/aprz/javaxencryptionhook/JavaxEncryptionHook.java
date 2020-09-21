@@ -1,6 +1,7 @@
 package com.aprz.javaxencryptionhook;
 
 
+import android.util.Base64;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -9,12 +10,15 @@ import androidx.annotation.NonNull;
 import java.security.MessageDigest;
 
 import javax.crypto.Cipher;
+import javax.crypto.Mac;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
+
+import static android.util.Base64.DEFAULT;
 
 public class JavaxEncryptionHook implements IXposedHookLoadPackage {
 
@@ -36,6 +40,8 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
         if (ALL_PACKAGES.equals(packageName) || loadPackageParam.packageName.equals(packageName)) {
             hookDigest(loadPackageParam);
 
+            hookMac(loadPackageParam);
+
             hookIv(loadPackageParam);
 
             hookSecretKeySpec(loadPackageParam);
@@ -49,6 +55,25 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
 
     }
 
+    private void hookMac(final XC_LoadPackage.LoadPackageParam loadPackageParam) {
+        XposedBridge.hookAllMethods(XposedHelpers.findClass("javax.crypto.Mac", loadPackageParam.classLoader),
+                "doFinal", new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                        super.afterHookedMethod(param);
+                        Mac mac = (Mac) param.thisObject;
+                        String algorithm = mac.getAlgorithm();
+                        byte[] result = (byte[]) param.getResult();
+
+                        String msg = format(algorithm, result);
+                        Throwable stack = new Throwable("Mac 算法");
+                        Log.e(TAG, msg, stack);
+                        FileUtils.log(loadPackageParam.packageName, msg, result, stack);
+                    }
+                });
+    }
+
+
     private void hookCipher(final XC_LoadPackage.LoadPackageParam loadPackageParam) {
         XposedBridge.hookAllMethods(XposedHelpers.findClass("javax.crypto.Cipher", loadPackageParam.classLoader),
                 "doFinal", new XC_MethodHook() {
@@ -61,11 +86,10 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
                         byte[] iv = cip.getIV();
                         String algorithm = cip.getAlgorithm();
 
-                        Log.e(TAG, String.format("算法名称是：%s，iv是%s, 结果是%s", algorithm,
-                                HexDumper.dumpHexString(iv), HexDumper.dumpHexString(result)));
-
-                        FileUtils.log(loadPackageParam.packageName,
-                                String.format("算法名称是：%s，其他信息如下：", algorithm), iv, result, new Throwable());
+                        Throwable stack = new Throwable("Cipher");
+                        String msg = format(algorithm, iv, result);
+                        Log.e(TAG, msg, stack);
+                        FileUtils.log(loadPackageParam.packageName, msg, iv, result, new Throwable());
                     }
                 });
     }
@@ -80,13 +104,16 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
                 int offset = 0;
 
                 // 拷贝数据
-                if (param.args.length != 1) //如果有两个参数的构造函数，第二个参数是偏移
+                if (param.args.length != 1) {
+                    //如果有两个参数的构造函数，第二个参数是偏移
                     offset = (int) param.args[1];
+                }
                 System.arraycopy((byte[]) param.args[0], offset, keyByte, 0, 8);
 
-                Log.e(TAG, String.format("DES 密钥为 %s", HexDumper.dumpHexString(keyByte)));
-
-                FileUtils.log(loadPackageParam.packageName, "DES密钥信息如下：", keyByte, new Throwable());
+                String msg = format(keyByte);
+                Throwable stack = new Throwable("DESKeySpec");
+                Log.e(TAG, msg, stack);
+                FileUtils.log(loadPackageParam.packageName, msg, keyByte, stack);
             }
         });
     }
@@ -101,13 +128,17 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
                 int offset = 0;
 
                 // 拷贝数据
-                if (param.args.length != 1) //如果有两个参数的构造函数，第二个参数是偏移
+                if (param.args.length != 1) {
+                    //如果有两个参数的构造函数，第二个参数是偏移
                     offset = (int) param.args[1];
+                }
                 System.arraycopy((byte[]) param.args[0], offset, keyByte, 0, 24);
 
-                Log.e(TAG, String.format("DES-EDE密钥为 %s", HexDumper.dumpHexString(keyByte)));
+                String msg = format(keyByte);
+                Throwable stack = new Throwable("DESedeKeySpec");
 
-                FileUtils.log(loadPackageParam.packageName, "DES密钥信息如下：", keyByte, new Throwable());
+                Log.e(TAG, msg, stack);
+                FileUtils.log(loadPackageParam.packageName, msg, keyByte, stack);
             }
         });
     }
@@ -136,10 +167,11 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
                 byte[] data = new byte[size];
                 System.arraycopy((byte[]) param.args[0], offset, data, 0, size);
 
-                String msg = String.format("SecretKeySpec 是 %s，算法名称是：%s", HexDumper.dumpHexString(data), algorithm);
-                Log.e(TAG, msg);
+                String msg = format(algorithm, data);
+                Throwable stack = new Throwable("SecretKeySpec");
 
-                FileUtils.log(loadPackageParam.packageName, String.format("算法名称是%s，SecretKeySpec 其他信息如下：", algorithm), data, new Throwable());
+                Log.e(TAG, msg, stack);
+                FileUtils.log(loadPackageParam.packageName, msg, data, stack);
             }
         });
     }
@@ -167,10 +199,10 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
                 ivByte = new byte[size];
                 System.arraycopy(tmp, offset, ivByte, 0, size);
 
-                String msg = String.format("iv向量是 %s", HexDumper.dumpHexString(ivByte));
-                Log.e(TAG, msg);
-
-                FileUtils.log(loadPackageParam.packageName, "iv向量信息如下：", ivByte, new Throwable());
+                String msg = format(ivByte);
+                Throwable stack = new Throwable("IvParameterSpec");
+                Log.e(TAG, msg, stack);
+                FileUtils.log(loadPackageParam.packageName, msg, ivByte, stack);
             }
         });
     }
@@ -187,11 +219,33 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
                 super.afterHookedMethod(param);
                 MessageDigest md = (MessageDigest) param.thisObject;
                 byte[] result = (byte[]) param.getResult();
-                String msg = String.format("算法名称为：%s，加密后的数据（HEX）为：%s",
-                        md.getAlgorithm(), HexDumper.dumpHexString(result));
-                Log.e(TAG, msg, new Throwable("Hook 消息摘要算法"));
-                FileUtils.log(loadPackageParam.packageName, String.format("摘要算法名称为：%s，其他信息如下：", md.getAlgorithm()), result, new Throwable());
+                String msg = format(md.getAlgorithm(), result);
+                Throwable stack = new Throwable("MessageDigest");
+                Log.e(TAG, msg, stack);
+                FileUtils.log(loadPackageParam.packageName, msg, result, stack);
             }
         });
+    }
+
+    private static String format(String algorithm, byte[] iv, byte[] result) {
+        return String.format("算法名称为：%s\n，iv -> hex string ：%s\n，iv -> base64 : %s\n,  result -> hex string : %s\n, result -> base64 : %s\n",
+                algorithm,
+                HexDumper.toHexString(iv),
+                Base64.encodeToString(iv, DEFAULT),
+                HexDumper.toHexString(result),
+                Base64.encodeToString(result, DEFAULT));
+    }
+
+    private static String format(String algorithm, byte[] result) {
+        return String.format("算法名称为：%s\n，hex string ：%s\n，base64 : %s\n",
+                algorithm,
+                HexDumper.toHexString(result),
+                Base64.encodeToString(result, DEFAULT));
+    }
+
+    private static String format(byte[] result) {
+        return String.format("hex string ：%s\n，base64 : %s\n",
+                HexDumper.toHexString(result),
+                Base64.encodeToString(result, DEFAULT));
     }
 }

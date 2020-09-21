@@ -6,7 +6,7 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 public class Entry implements IXposedHookLoadPackage {
 
-    private IXposedHookLoadPackage delegate = new JavaxEncryptionHook("com.example.testapk");
+    private IXposedHookLoadPackage delegate = new JavaxEncryptionHook(JavaxEncryptionHook.ALL_PACKAGES);
 
 
     @Override
