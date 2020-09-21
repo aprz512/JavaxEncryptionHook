@@ -228,7 +228,7 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
     }
 
     private static String format(String algorithm, byte[] iv, byte[] result) {
-        return String.format("算法名称为：%s\n，iv -> hex string ：%s\n，iv -> base64 : %s\n,  result -> hex string : %s\n, result -> base64 : %s\n",
+        return String.format("算法名称为：%s，\niv -> hex string ：%s，\niv -> base64 : %s, \nresult -> hex string : %s, \nresult -> base64 : %s",
                 algorithm,
                 HexDumper.toHexString(iv),
                 Base64.encodeToString(iv, DEFAULT),
@@ -237,14 +237,14 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
     }
 
     private static String format(String algorithm, byte[] result) {
-        return String.format("算法名称为：%s\n，hex string ：%s\n，base64 : %s\n",
+        return String.format("算法名称为：%s，\nhex string ：%s，\nbase64 : %s",
                 algorithm,
                 HexDumper.toHexString(result),
                 Base64.encodeToString(result, DEFAULT));
     }
 
     private static String format(byte[] result) {
-        return String.format("hex string ：%s\n，base64 : %s\n",
+        return String.format("hex string ：%s，\nbase64 : %s",
                 HexDumper.toHexString(result),
                 Base64.encodeToString(result, DEFAULT));
     }
