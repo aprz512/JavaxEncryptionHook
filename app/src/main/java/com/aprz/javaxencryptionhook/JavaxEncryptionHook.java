@@ -1,12 +1,15 @@
 package com.aprz.javaxencryptionhook;
 
 
+import android.app.Application;
+import android.content.Context;
 import android.util.Base64;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 
 
+import java.io.File;
 import java.security.MessageDigest;
 import java.security.PublicKey;
 
@@ -37,8 +40,11 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam loadPackageParam) throws Throwable {
 
+
         // 只 hook 指定进程
         if (ALL_PACKAGES.equals(packageName) || loadPackageParam.packageName.equals(packageName)) {
+            createDataDir(loadPackageParam);
+
             hookDigest(loadPackageParam);
 
             hookMac(loadPackageParam);
@@ -57,6 +63,28 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
             hookX509EncodedKeySpec(loadPackageParam);
         }
 
+    }
+
+    private void createDataDir(XC_LoadPackage.LoadPackageParam loadPackageParam) {
+        // 忽略系统的应用
+//        if(loadPackageParam.packageName.startsWith("com.android.")) {
+//            return;
+//        }
+        XposedHelpers.findAndHookMethod(Application.class, "attach", Context.class, new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                // this will be called before the clock was updated by the original method
+            }
+
+            @Override
+            protected void afterHookedMethod(XC_MethodHook.MethodHookParam param) throws Throwable {
+                Context context = (Context) param.args[0];
+                File filesDir = context.getFilesDir();
+                if (!filesDir.exists()) {
+                    filesDir.mkdirs();
+                }
+            }
+        });  // end
     }
 
     private void hookX509EncodedKeySpec(final XC_LoadPackage.LoadPackageParam loadPackageParam) {
@@ -122,7 +150,12 @@ public class JavaxEncryptionHook implements IXposedHookLoadPackage {
                         String algorithm = cip.getAlgorithm();
 
                         Throwable stack = new Throwable("javax.crypto.Cipher#doFinal");
-                        String msg = format(algorithm, iv, result);
+                        String msg;
+                        if (iv == null) {
+                            msg = format(algorithm, result);
+                        } else {
+                            msg = format(algorithm, iv, result);
+                        }
                         Log.e(TAG, msg, stack);
                         FileUtils.log(loadPackageParam.packageName, msg, iv, result, new Throwable());
                     }
